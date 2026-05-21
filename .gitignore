@@ -1,0 +1,24 @@
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+*-blx.bib
+
+# Generated output
+*.pdf
+
+# Editor and OS files
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
