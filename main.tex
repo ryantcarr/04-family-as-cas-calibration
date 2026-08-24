@@ -1,3 +1,24 @@
+% =====================================================================
+% Paper 4 — Family-as-CAS Calibration (Rung 2 of the calibration ladder)
+% Draft v0.1 (methods-forward), 2026-06-11
+%
+% Drafting basis and traceability:
+%   - Practicum proposal: sections/background.tex (sec:family-cas),
+%     sections/methodology.tex (sec:three-step-calibration, Step 2 rows of
+%     tab:analysis-parallelism), sections/research_objectives.tex (RQ2.1b)
+%   - oha-simulation-v2: docs/FORWARD_PLAN.md (Phase 7), docs/specs/SRS.md
+%     (SR-INS-002/004, SR-DYN-001..007, SR-ANA-010, SR-VAL-007),
+%     docs/design/sdd/SDD-DYN.md (DD-DYN-001..004)
+%   - v1 design concept (no code reuse): docs/FAMILY_SYSTEM_BRIDGE.md
+%     (family state vector, licensing-safe registry pattern)
+%   - Gap register: MISSING_INFO_PLAN.md in this folder (G1–G9)
+%
+% Status: METHODS-FORWARD WORKING DRAFT. Sections 1–4 are full prose.
+% Section 5 (Results) contains pre-registered table shells only; no Rung-2
+% runs exist yet (they are FORWARD_PLAN Phase 7, after the Rung-1 freeze).
+% No FAD/SCORE-15 benchmark value in this draft is verified; every such
+% value is flagged \lead{} and tracked as gap G1.
+% =====================================================================
 \documentclass[12pt, letterpaper]{article}
 
 \usepackage[utf8]{inputenc}
@@ -7,44 +28,372 @@
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{amsmath, amssymb}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{placeins}
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta, fit, backgrounds}
 \usepackage{hyperref}
 \usepackage[style=apa, backend=biber]{biblatex}
 
 \addbibresource{references.bib}
 \onehalfspacing
 
-\title{Family-as-CAS Calibration:\\Multi-Agent Relational Response Simulation Using FAD and SCORE-15 Benchmarks}
-\author{Ryan Carr}
-\date{\today}
+% --- Draft-discipline macros -----------------------------------------
+% \lead{}    : a literature claim that is a LEAD, not a verified source.
+%              Must be cleared through docs/experiments/citation_verification.md
+%              (family set, gap G1) before submission.
+% \pending{} : a value/result that cannot exist until a later program phase.
+\newcommand{\lead}[1]{\textcolor{red!65!black}{\textbf{[LEAD --- verify before citing: #1]}}}
+\newcommand{\pending}[1]{\textcolor{blue!55!black}{\textbf{[PENDING --- #1]}}}
+
+\title{Family-as-CAS Calibration:\\Multi-Agent Relational Response Simulation Using FAD and SCORE-15 Benchmarks\thanks{Working title. If authorized instrument text is not obtained (Section~\ref{sec:licensing}), the title and benchmark claims narrow to the construct-architecture branch; see Section~\ref{sec:benchmarks}.}}
+\author{Ryan Carr\\Colorado State University}
+\date{Draft v0.1 --- \today}
 
 \begin{document}
 
 \maketitle
 
+\begin{center}
+\fbox{\begin{minipage}{0.92\textwidth}
+\small\textbf{Draft status.} Methods-forward working draft. Sections~1--4 are complete prose; Section~5 contains pre-registered result shells to be populated when the Rung-2 calibration executes (program plan Phase~7, after the Rung-1 configuration freeze). Red \textbf{[LEAD]} flags mark literature claims not yet verified against primary sources; blue \textbf{[PENDING]} flags mark values that cannot exist before later program phases. Neither flag class may survive into a submitted version.
+\end{minipage}}
+\end{center}
+
 \begin{abstract}
-TODO: Summarize the Family-as-CAS extension and its calibration against FAD and SCORE-15 family-system benchmarks.
+\noindent Large language model (LLM) respondent simulation is increasingly proposed for characterizing survey instruments before empirical validation is feasible. Organizational health assessment raises a requirement that single-respondent simulation cannot address: an organization is assessed by \emph{multiple informants reporting on one shared system}, whose partial agreement, informative disagreement, and trajectory over time are themselves measurement evidence. This paper specifies and executes the family-system rung of a three-rung calibration ladder for an LLM-based simulated-respondent architecture. Families are the smallest natural systems for which multi-informant, multidomain, repeated-administration measurement has a decades-long validated tradition --- the McMaster Family Assessment Device (FAD) and the SCORE-15 systemic outcome measure --- making them the only multi-actor level of analysis with published psychometric signatures available as calibration targets. We extend a previously calibrated single-respondent response architecture, frozen at the individual rung, with three relational components: a shared-system ground-truth state, a pre-registered role-conditioned perception layer, and inter-member interaction dynamics, all mediated through natural-language biographies that hide instrument-aligned ground truth from the response engine. Calibration targets three signature classes: multidomain structure, multi-informant divergence, and longitudinal change sensitivity. Because family-instrument psychometrics are plausibly represented in LLM training corpora, the design is controlled by measured contamination floors, a sampling-noise floor, a single-agent persona null, and a perception-off null; cross-informant divergence is reported only decomposed into perception-attributable and response-distortion-attributable components. \pending{Phase 7}: calibration outcomes, control verdicts, and the bounded uncertainty statement carried to the organizational rung. The contribution is a falsifiable, pre-registered procedure for deciding whether a multi-agent LLM simulation reproduces relational measurement behavior for reasons other than prior recitation --- calibration evidence for staged instrument characterization, not validation of any family or organizational instrument.
 \end{abstract}
 
+\newpage
+\tableofcontents
+\newpage
+
+% =====================================================================
 \section{Introduction}
-TODO: Explain why a family-system layer provides an intermediate calibration layer between individual and organizational assessment.
+\label{sec:intro}
+% =====================================================================
 
-\section{Family Systems as Complex Adaptive Systems}
-TODO: Review family functioning, relational dynamics, multi-informant perspectives, and longitudinal change.
+Brief screening instruments earn their value by being short enough for routine use while remaining faithful to a richer underlying assessment. The clinical archetype is the PHQ-9, validated against comprehensive structured interviews \parencite{kroenke2001}. A research program developing an analogous brief screener for organizational health --- the Organizational Health Assessment (OHA) \parencite{carr2025} --- faces a bootstrap problem: no comparable validated comprehensive criterion exists for organizational health, and large-sample empirical validation is expensive precisely when an instrument is newest. The program therefore characterizes the OHA computationally first, using LLM-simulated respondents under controlled latent conditions, with explicit boundaries on what such characterization can claim.
 
-\section{Simulation Architecture}
-TODO: Describe the multi-agent family simulation and respondent perspective model.
+Simulated-respondent evidence is only as credible as the simulation's demonstrated ability to reproduce measurement relationships where ground truth is known. The program's response to this is a \emph{calibration ladder}: the response-generation architecture must earn bounded trust at lower levels of analysis, against published benchmarks, before it is applied at the organizational level where no benchmarks exist. Rung~1 calibrates a single-respondent architecture against individual clinical screening benchmarks. Rung~3 applies the calibrated apparatus to the OHA and its comprehensive comparator. This paper is Rung~2, and it exists because of a specific structural gap between them: organizational assessment is \emph{multi-informant assessment of a shared system}. Frontline staff, supervisors, and executives report on the same organization from different vantage points; their divergence is treated as diagnostic information, not noise; and the instrument is administered repeatedly to track trajectory. None of these properties --- multiplicity, informative divergence, shared-system trajectory --- is exercised by single-respondent calibration. An architecture calibrated only at Rung~1 would arrive at the organizational level with its distinctly \emph{relational} machinery untested.
 
-\section{Calibration Benchmarks}
-TODO: Define FAD multidomain and multi-informant targets plus SCORE-15 longitudinal-change targets.
+Family systems are the intermediate rung because they are the smallest natural systems for which exactly these properties have a long, validated measurement tradition. The McMaster Family Assessment Device (FAD) operationalizes multidomain functioning of a shared relational system reported by multiple household informants \parencite{epstein1983}; the SCORE-15 provides brief, repeatable systemic outcome measurement designed to detect change across therapy sessions \parencite{stratton2014}. Between them, the family-measurement tradition supplies published signatures for all three properties the organizational application requires and Rung~1 cannot test.
 
+\paragraph{Contribution.} This paper makes four contributions:
+\begin{enumerate}[nosep]
+    \item A multi-agent relational extension of a frozen, previously calibrated single-respondent LLM response architecture: a shared-system ground-truth state, a pre-registered role-conditioned perception layer, and inter-member interaction dynamics, all communicating with the response engine exclusively through validated natural-language biographies (Section~\ref{sec:architecture}).
+    \item A pre-registered calibration design against three classes of published family-system signatures --- multidomain structure, multi-informant divergence, and longitudinal change --- with an explicit dual-branch benchmark specification that states, in advance, which targets survive if authorized instrument text is not available (Section~\ref{sec:design}).
+    \item A control suite that makes the central claim falsifiable: measured contamination floors, a sampling-noise floor, a single-agent persona null, and a perception-off null, with cross-informant divergence reported only after decomposition into perception-attributable and distortion-attributable components (Sections~\ref{sec:controls}, \ref{sec:analysis}).
+    \item \pending{Phase 7} Calibration outcomes against the pre-registered targets, control verdicts, and a bounded uncertainty statement that is carried forward as an input to the organizational rung (Section~\ref{sec:results}).
+\end{enumerate}
+
+\paragraph{Claims boundary.} Stated here so that no later section has to walk anything back. This paper does \emph{not} validate the FAD, the SCORE-15, the OHA, or any simulated instrument; it does not claim that simulated families are families, that reproduction of published signatures demonstrates the psychological mechanism of the response architecture, or that family-level calibration establishes organizational-level fidelity. Calibration here means: under pre-registered targets and controls, the simulation's outputs were (or were not) brought into bounded agreement with published measurement signatures, with the residual disagreement quantified and propagated. If the control suite shows the signatures are reproducible without the relational machinery --- by prior recitation or by a single persona-conditioned call --- that finding takes precedence over any calibration success and is reported as the headline result. The family instruments serve as benchmark precedents; they are not validators of the organizational instrument, and family-to-organization equivalence is itself a registered threat (Section~\ref{sec:threats}), not an assumption.
+
+% =====================================================================
+\section{Background and Related Work}
+\label{sec:background}
+% =====================================================================
+
+\subsection{The calibration ladder and the Rung-1 inheritance}
+\label{sec:ladder}
+
+% Traceability: proposal sec:three-step-calibration; FORWARD_PLAN Phases 4-6 outputs.
+The ladder's logic is wind-tunnel reasoning with an honestly stated disanalogy. A wind tunnel earns trust on airfoils with known coefficients before testing novel geometry, and its physics do not change between the two. An LLM's ``physics'' \emph{do} change between a heavily documented clinical instrument and a novel organizational one: on the former, training corpora contain the instrument, its scoring, and its epidemiology; on the latter they contain at most genre-level priors. The ladder is therefore not a transfer proof; it is a staged risk-reduction design in which each rung tests the architectural capabilities the next rung depends on, under the strongest available controls, and passes forward a quantified uncertainty statement rather than a blanket license.
+
+Rung~1 calibrates the single-respondent architecture --- a Person-as-CAS response engine in which competing response pressures (experiential, narrative, social, protective, reflective) are negotiated into item responses --- against published individual-screening benchmarks \parencite{kroenke2001}, with architecture selection by pre-registered bake-off, contamination floors measured per architecture, a persona-only null, and temperature calibrated (and reported as calibration, not as reliability evidence) to a published score-stability target. This paper inherits from Rung~1, as frozen inputs: the selected architecture \pending{Phase 4 bake-off selection}, the calibrated process weights and sampling temperature \pending{Phase 5 freeze}, and the floor-measurement and pre-registration disciplines themselves. Nothing in the present design may retune those parameters; Rung~2 calibrates only the components that are new at this rung (Section~\ref{sec:design:procedure}).
+
+\subsection{Family-system measurement: the benchmark tradition}
+\label{sec:familymeasurement}
+
+Two instrument families anchor the calibration targets. We summarize them for a systems-engineering readership; readers are directed to the source literature for full psychometric treatments.
+
+\paragraph{FAD.} The McMaster Family Assessment Device \parencite{epstein1983} is a self-report instrument grounded in the McMaster Model of Family Functioning. It is organized around six content dimensions of relational functioning --- problem solving, communication, roles, affective responsiveness, affective involvement, and behavior control --- plus a General Functioning scale that indexes overall family health; the full form comprises 60 items with a 12-item General Functioning subscale, answered on a four-point agreement format. Two design properties matter for this paper. First, the FAD is administered to multiple household members \emph{about the same family}, and the literature treats cross-informant discrepancy as substantively meaningful rather than as error. Second, its multidomain structure expresses the position that a relational system's health is a profile across interdependent functioning domains, not a single latent score.
+
+\paragraph{SCORE-15.} The SCORE-15 \parencite{stratton2014} is a brief systemic outcome measure from the SCORE family of instruments, designed for routine repeated administration in systemic family therapy, with subscales conventionally described as strengths/adaptability, difficulties (being overwhelmed by them), and disrupted communication. Its validation explicitly targets sensitivity to therapeutic change over short re-administration intervals, which makes it the family-level precedent for trajectory monitoring --- the property the organizational screener's repeated-administration rationale depends on.
+
+\paragraph{Benchmark status, stated honestly.} The two citations above are verified program sources. The quantitative benchmark values this calibration requires --- domain-score patterns for distressed versus nondistressed families, clinical cutoffs, internal-consistency ranges across sample types, cross-informant agreement coefficients and the direction and typical magnitude of role-linked discrepancies (e.g., parent--adolescent differences), and SCORE-15 change effect sizes and reliable-change behavior --- are distributed across a secondary literature that this program has not yet verified against primary sources. \lead{FAD reliability/validity and cutoff studies (Miller et al.; Kabacoff et al.; Byles et al.); FAD informant-agreement studies; informant-discrepancy reviews; SCORE-15 psychometric, norming, and responsiveness studies (Stratton and Carr research groups); any published SCORE--FAD cross-instrument correlation.} Per the program's citation rule, every value enters the pre-registered target table (Section~\ref{sec:benchmarks}) only after primary-source verification, and the table is committed before any calibration cell is inspected. Assembling and verifying this table is tracked as gap~G1 in the companion plan (\texttt{MISSING\_INFO\_PLAN.md}) and is a precondition for the Phase-7 runs, not a task this draft performs.
+
+\paragraph{A deliberate non-target.} The obvious family-level analog of Rung~1's screener-versus-comprehensive agreement --- FAD General Functioning against the full FAD --- is a part--whole correlation: the GF items sit inside the full form, agreement is structurally guaranteed to be high, and a language model could reproduce it from priors as easily as from mechanism. It is therefore \emph{excluded} as a load-bearing target. If primary-source verification (G1) surfaces a published cross-instrument SCORE--FAD correlation, that relationship enters the target table as the brief-versus-comprehensive analog; if it does not, this rung simply does not carry that analogy, and says so. Rung~2's distinctive calibranda are the three things Rung~1 cannot test: multiplicity, divergence, and trajectory.
+
+\subsection{LLM-simulated respondents and multi-agent simulation}
+\label{sec:llmrespondents}
+
+LLM-as-respondent research has established that persona-conditioned models can reproduce subgroup response distributions on attitude surveys \parencite{argyle2023}, that LLM agents with persistent state produce coherent emergent social behavior \parencite{park2023}, and that simulated respondents can predict aggregate treatment effects across archives of survey experiments \parencite{hewitt2024}. The same literature documents the failure modes this design treats as first-class threats: homogenized, stereotyped response distributions that underrepresent extremes \parencite{bisbee2024} and sensitivity to measurement-irrelevant prompt perturbations \parencite{tjuatja2024}. Agent-based modeling supplies the system-level substrate: agents interacting under specified rules generate emergent macro behavior \parencite{bonabeau2002}, and organizational simulation has used ABMs to connect individual behavior to emergent team phenomena \parencite{kozlowski2013}.
+
+The intersection relevant here --- multiple LLM respondents reporting on one \emph{shared} system, evaluated against published multi-informant psychometric signatures rather than against plausibility judgments --- is, to our knowledge, unoccupied. \lead{novelty sweep: search for prior work on multi-informant/dyadic/family LLM respondent simulation with psychometric evaluation before asserting this gap in a submitted version.} The nearest traditions evaluate single-respondent marginal distributions or multi-agent behavioral realism; neither asks whether simulated informants embedded in one system reproduce the agreement-and-divergence structure that defines validated multi-informant measurement.
+
+% =====================================================================
+\section{Family-as-CAS Simulation Architecture}
+\label{sec:architecture}
+% =====================================================================
+
+\subsection{Overview and design rule}
+
+% Traceability: SDD-DYN DD-DYN-001..004; SRS SR-DYN-001..007; DD-RCC-001 barrier.
+The architecture extends the frozen Rung-1 response engine with relational structure while preserving the single discipline that makes the whole program auditable: \textbf{the response engine never sees the machinery}. Ground-truth state, perception rules, and interaction dynamics live upstream; the only artifact that crosses into the response engine is a validated natural-language biography. Figure~\ref{fig:architecture} shows the layers.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    box/.style={draw, rounded corners, align=center, font=\footnotesize, minimum height=0.85cm, inner sep=4pt},
+    wide/.style={box, minimum width=11.6cm},
+    half/.style={box, minimum width=5.5cm},
+    lab/.style={font=\scriptsize\bfseries, anchor=east, align=right},
+    arrow/.style={-{Stealth[length=2.2mm]}, thick},
+    node distance=0.55cm
+]
+\node[wide, fill=green!8] (gt) {Family ground-truth state (shared system vector + per-member states + relationship qualities)};
+\node[half, fill=blue!6, below=of gt.south west, anchor=north west] (dyn) {Interaction dynamics\\topology, influence, pressure,\\events, timepoint trajectory};
+\node[half, fill=orange!8, below=of gt.south east, anchor=north east] (per) {Role-conditioned perception\\pre-registered role$\to$perception rules\\(member-specific perceived state)};
+\node[wide, fill=orange!15, below=1.55cm of gt] (bio) {Biography generation + validator chain (per member, per timepoint)\\ \scriptsize prohibited-label / instruction / relational-frequency-texture checks};
+\node[below=0.28cm of bio, font=\scriptsize\itshape] (barrier) {--- --- --- information barrier: only validated biography text crosses --- --- ---};
+\node[wide, fill=purple!8, below=0.25cm of barrier] (engine) {Frozen Rung-1 response engine (selected architecture; calibrated weights, temperature)};
+\node[wide, fill=gray!12, below=of engine] (inst) {Instrument administration (FAD-class, SCORE-15-class) $\to$ member-level item responses};
+\node[wide, fill=gray!6, below=of inst] (ana) {Analysis: aggregation, divergence decomposition, trajectories, vs.\ pre-registered targets};
+\draw[arrow] (gt.south -| dyn) -- (dyn.north);
+\draw[arrow] (gt.south -| per) -- (per.north);
+\draw[arrow] (dyn.east) -- (per.west);
+\draw[arrow] (per.south) -- (bio.north -| per);
+\draw[arrow] (dyn.south) -- (bio.north -| dyn);
+\draw[arrow] (bio) -- (engine);
+\draw[arrow] (engine) -- (inst);
+\draw[arrow] (inst) -- (ana);
+\end{tikzpicture}
+\caption{Rung-2 architecture. Dynamics and perception operate on system state \emph{upstream} of biography generation; the frozen Rung-1 engine receives only validated biography text and the instrument items. Dashed line: the information barrier. Controls (Section~\ref{sec:controls}) selectively disable the dynamics and perception layers, or bypass the upper stack entirely, to measure what each layer contributes.}
+\label{fig:architecture}
+\end{figure}
+
+\subsection{Target system and ground-truth state}
+\label{sec:groundtruth}
+
+% Traceability: SR-RCC-013 analog (family classes/bands); v1 FAMILY_SYSTEM_BRIDGE state
+% vector reused as design concept only (v2 no-code-reuse rule).
+A simulated family is a \emph{target system} with three state tiers, all set by configuration and recorded in run provenance:
+
+\begin{itemize}[nosep]
+    \item \textbf{Shared system state}: a small vector of family-level latent variables --- working set: shared climate, latent stressor load, communication quality, role clarity, conflict regulation, adaptation capacity --- that constitutes the family's true functioning profile.
+    \item \textbf{Per-member states}: each member's internal condition (distress, engagement) and demographic/role frame (e.g., parent, adolescent).
+    \item \textbf{Relationship states}: pairwise relationship quality, supplying the asymmetry that makes member perspectives differ for reasons beyond role.
+\end{itemize}
+
+Family \emph{classes} for calibration (e.g., nondistressed, strained, clinically distressed) are defined as regions of the shared-state vector with pre-stated expected response bands --- the family analog of the diagnostic-class maps used at Rung~1. A program decision already taken for the clinical comparator applies here in force: where no licensed, literature-anchored cutoff is available to define a class boundary, class expectations are pre-registered as \emph{ordinal only} (orderings and discrimination, not absolute bands), and any absolute band is labeled design-derived. \pending{G1/G4 --- whether published FAD cutoffs are usable depends on the verified benchmark table and the licensing branch.}
+
+\subsection{Role-conditioned perception layer}
+\label{sec:perception}
+
+% Traceability: CSC-RCC-SYS PerceptionDeriver; PR-6; OQ-DYN-2.
+Members of the same family do not report on the same family because they do not \emph{see} the same family. The perception layer derives, for each member, a perceived system state from the true shared state: a function of role, relationship qualities, and the member's own state. Two disciplines bound it. First, the role$\to$perception rules are \textbf{pre-registered before any calibration run} (registration PR-6, Appendix~\ref{app:prereg}), with each rule sourced from the verified family-agreement literature or explicitly labeled design-posited; rules are not adjusted against calibration outcomes after registration. Second, the layer's contribution is \emph{measured, not asserted}: a perception-off null (all members perceive the true state identically) runs in every calibration cell (Section~\ref{sec:controls}), and divergence is reported only as decomposed into perception-attributable and response-distortion-attributable components (Section~\ref{sec:analysis}). The reason for this severity is stated plainly: a perception layer is a divergence-manufacturing device, and without pre-registration and decomposition, ``reproduced published informant discrepancies'' would be a self-fulfilling claim. This is the program's registered threat T6 and it is handled as such.
+
+\subsection{Interaction dynamics}
+\label{sec:dynamics}
+
+% Traceability: SR-DYN-001..004; OQ-DYN-1 (between-timepoint influence first); DD-DYN-004 seeding.
+The dynamics layer makes the family a system rather than a roster: an interaction topology over members; influence propagation that lets one member's state shift others'; pressure dynamics for time-varying stressor load; discrete events (e.g., onset of an external stressor, an intervention-like relief event); and a timepoint schedule that evolves the shared state along configured trajectories (stable, deteriorating, improving). In the first implementation, influence operates \emph{between} timepoints, not within a single administration; intra-session influence is deliberately deferred. All stochastic dynamics derive from recorded seeds, so multi-agent runs replicate exactly. Dynamics never touch the response engine directly: they modify system state and member perceived states, which then reshape the biographies (Figure~\ref{fig:architecture}). For single-member, single-timepoint runs the layer is provably inert --- the Rung-1 path is unchanged by Rung-2's existence, which is itself test-asserted.
+
+\subsection{Biography mediation and leakage controls}
+\label{sec:biography}
+
+% Traceability: SR-RCC-014 analog (relational frequency texture); ProhibitedLabelScanner;
+% DistortionInstructionScanner; P4/P6 lessons from the v1 sandbox.
+Each member, at each timepoint, receives a generated biography: a natural-language account of their life in this family as seen from their position, produced from their perceived state. The generator is bound by a validator chain whose rules carry forward two empirical lessons from the program's individual-rung probes. First, biographies must not leak the measurement: instrument names, item paraphrases, response-anchor phrasings, numeric scores, and clinical/structural construct labels are prohibited and scanned for; biographies likewise must not \emph{instruct} distortion (``you tend to underreport\ldots''), which an earlier probe series showed inflates apparent response effects. Second, biographies must not be \emph{lossy} on the information the instruments are scaled on: the individual rung found that biographies silently dropped symptom-frequency information that response anchors require, and the fix is a validated requirement that frequency texture be present. The relational analog is enforced here: biographies must carry the frequency and intensity texture of relational patterns (how often conflict erupts, how reliably roles are met, how communication attempts resolve) in natural narrative form, checked for presence --- not for back-calculability into scores, which would reopen the leak. An encoding-fidelity check (biography-mediated versus explicit-state responses under a fixed direct architecture) quantifies remaining channel loss before the calibration is read, mirroring the individual rung's channel-bandwidth measurement.
+
+\subsection{Instruments and the licensing path}
+\label{sec:licensing}
+
+% Traceability: SR-INS-002/004; CON-006; OQ-INS-2; proposal's permission contingency.
+Both instrument families carry licensing constraints; the program neither commits restricted item text to the repository nor administers a licensed instrument without authorization (item text is storable by cryptographic hash where licensing prohibits the text itself, and administration refuses by default absent an authorized schema). Permission requests to the respective rights holders are in progress \pending{G4 --- request status}. This yields two pre-declared branches:
+
+\begin{description}[nosep]
+    \item[Branch A (authorized item text).] The simulation administers the instruments as published; calibration targets may include absolute published statistics (domain means by class, cutoffs, internal-consistency ranges) alongside structural signatures.
+    \item[Branch B (construct-architecture replication).] The simulation administers project-authored item sets that replicate the instruments' construct architecture (domain structure, multi-informant administration, repeated administration) without reproducing any item. Published \emph{absolute} values are then not commensurable --- they are bound to the original item sets --- and only structure-level signatures remain admissible targets: orderings, discrimination, the direction and relative magnitude of informant discrepancies, intercorrelation patterns, and change-sensitivity direction.
+\end{description}
+
+The branch in force is recorded before calibration begins, and the pre-registered target table (Section~\ref{sec:benchmarks}) specifies both branches in advance, so the licensing outcome selects between pre-committed target sets rather than inviting post hoc target choice.
+
+% =====================================================================
+\section{Calibration Design}
+\label{sec:design}
+% =====================================================================
+
+\subsection{Pre-registration protocol}
+\label{sec:prereg}
+
+% Traceability: FORWARD_PLAN §2 (PR-6); PreregistrationGuard; commit-hash anchoring.
+All confirmatory elements of this study are committed to the program repository as markdown pre-registrations \emph{before} the corresponding results are inspected, with the git commit hash as the tamper-evident anchor, enforced at run time by the experiment infrastructure. Two registrations govern this rung (skeletons in Appendix~\ref{app:prereg}): \textbf{PR-6a} --- the role$\to$perception rules, dynamics parameter ranges, and the freeze procedure; \textbf{PR-6b} --- the dual-branch benchmark target table with margins, the control thresholds, cohort sizes and power basis, and pre-written verdict templates for every pass/shortfall combination. Where partial knowledge already exists when a registration is committed (verified floor values, previously seen pilot cells), the registration discloses it and derives thresholds only from permitted inputs. Calibration cohorts are split from validation cohorts, and calibration-tagged runs are excluded from validation reporting by construction.
+
+\subsection{Benchmark targets (dual-branch)}
+\label{sec:benchmarks}
+
+Three signature classes constitute the calibration targets. Table~\ref{tab:targets} is the committed shell; every cell marked \pending{} is populated from the verified benchmark table (gap G1) at PR-6b commit time, before any run.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Pre-registered calibration target shell. Values enter only from primary-source-verified literature (G1) at PR-6b commit; Branch~B admits only structure-level statistics (Section~\ref{sec:licensing}). No cell may be filled or altered after first inspection of any calibration cell.}
+\label{tab:targets}
+\begin{tabular}{p{3.3cm}p{4.6cm}p{4.6cm}}
+\toprule
+Signature class & Branch A targets (authorized items) & Branch B targets (construct architecture) \\
+\midrule
+S1 Multidomain structure & Domain-mean patterns by family class; internal-consistency ranges; domain intercorrelation pattern \pending{G1 values + margins} & Class ordering per domain; discrimination (rank-based); intercorrelation \emph{pattern} only \pending{G1 qualitative signatures} \\
+\midrule
+S2 Multi-informant divergence & Cross-informant agreement coefficients; role-linked discrepancy direction and magnitude \pending{G1 values + margins} & Discrepancy \emph{direction} and relative magnitude by role pairing; agreement ordering across domains \pending{G1 qualitative signatures} \\
+\midrule
+S3 Longitudinal change & Change effect sizes / reliable-change behavior over re-administration under improving vs.\ stable trajectories \pending{G1 values + margins} & Directionally correct change; trajectory discrimination; stability under the stable trajectory \pending{G1 qualitative signatures} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Margins are expressed in multiples of the measured noise floor (Section~\ref{sec:controls}) wherever the statistic permits, following the program's standing practice. Statistics that anchored-class cohort designs mechanically inflate (pooled internal consistency above all) are either evaluated at a registered class mix or demoted to descriptive reporting --- the registration says which, per statistic, in advance.
+
+\subsection{Controls: floors, nulls, and the activity gate}
+\label{sec:controls}
+
+% Traceability: E1/E2/E5/E8 analogs; SR-VAL-007; noise-floor discipline from job-994 protocol.
+The control suite exists to answer the question a skeptical reviewer will ask first: \emph{could these signatures be produced without the relational machinery?} Family-instrument psychometrics and the canonical informant-discrepancy findings are plausibly in-corpus for any frontier model; reproduction alone is therefore evidence of nothing. Every control below is run on the same backend and, where applicable, the same cohorts as the calibration cells; all are pre-registered in PR-6b with their decision thresholds.
+
+\begin{description}[nosep]
+    \item[C0 --- Noise floor.] Fixed-input repeated administration at the production serving configuration, per instrument. The floor is a property of backend $\times$ serving concurrency (a program lesson, not an assumption) and is re-measured under Rung-2 run conditions. Every margin in Table~\ref{tab:targets} is expressed over this floor.
+    \item[C1 --- Contamination floors (naive recall).] Direct, no-persona, no-biography prompting for each instrument's distributions, discrepancy patterns, and change behavior --- per architecture. This measures what the model already ``knows'' about FAD/SCORE-15-class measurement. Any calibration result that does not dominate C1 carries no mechanistic weight.
+    \item[C2 --- Single-agent persona null.] One call per member: the member's biography and the instrument, with \emph{no} shared-system machinery --- no perception layer, no dynamics, members generated independently from a common family description. This is the decisive null for the title claim: if C2 reproduces S1--S3, the multi-agent apparatus is unnecessary for these signatures and the paper's conclusion says so.
+    \item[C3 --- Perception-off null.] Full system with all members perceiving the true shared state identically. Run in every calibration cell; required input to the divergence decomposition (Section~\ref{sec:analysis}).
+    \item[C4 --- Role-sensitivity sweep.] Systematic variation of role assignments against fixed system state, measuring how much divergence the role$\to$perception rules inject by themselves.
+    \item[C5 --- Dynamics-off ablation (S3 only).] Trajectories replaced by independent draws per timepoint, isolating whether longitudinal signatures come from the modeled trajectory or from per-timepoint regeneration.
+    \item[G --- Channel activity gate (binding).] Before any calibration read: family classes must separate beyond the measured noise floor through the biography channel, under a fixed architecture, with the encoding-fidelity check (Section~\ref{sec:biography}) passed. A failed gate halts Rung-2 calibration as an engineering finding --- it is not reportable as a calibration shortfall, and not worked around.
+\end{description}
+
+Table~\ref{tab:interpretation} pre-commits the interpretation logic, so outcomes cannot be re-narrated after the fact.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Pre-committed interpretation of control outcomes (verdict templates in PR-6b). ``Dominates'' means beyond the pre-registered margin over the relevant floor.}
+\label{tab:interpretation}
+\begin{tabular}{p{5.6cm}p{7.2cm}}
+\toprule
+Outcome pattern & Licensed conclusion \\
+\midrule
+Calibration meets targets; dominates C1; C2 fails S2/S3; decomposition shows bounded perception share & Relational machinery contributes measurably; bounded trust carried to Rung 3 with quantified residuals \\
+\midrule
+Calibration meets targets but C2 reproduces S1--S3 & Signatures are persona-recitable; multi-agent layer unsupported at this rung; reframe per Section~\ref{sec:discussion}; Rung 3 proceeds only under the narrowed claim \\
+\midrule
+C1 floors already match published signatures & Targets are contamination-saturated; affected targets demoted to descriptive; calibration claim restricted to floor-dominating statistics only \\
+\midrule
+Activity gate G fails after the encoding fix & Rung-2 calibration blocked; engineering finding; program-level decision point --- no calibration claim of any kind \\
+\midrule
+Targets partially met (any branch) & Shortfall documented as a boundary finding; uncertainty propagated into the Rung-3 input statement (proposal's required-and-reported gate semantics) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Calibration procedure and freeze}
+\label{sec:design:procedure}
+
+What is tunable at this rung is exactly what is new at this rung: perception-rule \emph{parameters} within the pre-registered rule forms, influence/pressure parameters, and trajectory parameters. The Rung-1 engine (architecture, process weights, temperature) is frozen and untouchable; biography-generator iteration is permitted only against encoding diagnostics (gate G inputs), never against calibration outcomes, and the generator prompt version is frozen before calibration cells run. Calibration proceeds on the calibration cohort against Branch-appropriate targets; each iteration is logged with its rendered prompts stored, preserving the artifact-verifiability rule (a manipulation counts only if its content is confirmed present in stored artifacts). When calibration halts --- targets met or budget exhausted --- the full Rung-2 parameter set is hashed and frozen, and validation cohorts (new seeds, same frozen configuration) generate every number reported in Section~\ref{sec:results}. Rung-3 organizational characterization inherits this frozen relational machinery and may not retune it against organizational results --- that inheritance, not any family-content transfer, is what Rung-2 calibration buys.
+
+\subsection{Cohorts, power, and cost}
+\label{sec:power}
+
+A Rung-2 cell is a family $\times$ timepoint schedule: total LLM calls scale as
+\[
+N_{\text{fam}} \times M \times T \times I \times c_{\text{arch}} \times R,
+\]
+with $M$ members per family, $T$ timepoints, $I$ items per instrument, $c_{\text{arch}}$ calls per item for the selected architecture \pending{Phase 4; the leading candidate architecture spends 11 calls/item}, and $R$ replications. Cohort sizes are powered from the measured between-family variance and the C0 noise floor at production serving concurrency \pending{Phase-7 pre-runs feeding PR-6b}, under compression-conservative effect-size assumptions (the individual rung found biography-mediated effects materially smaller than explicit-state effects; powering against optimistic effect sizes would bias the design toward false shortfalls). Cell counts, per-class $N$, and the GPU budget envelope are committed in PR-6b. No power statement is made in this draft because the variance inputs do not exist yet; committing one now would be decoration.
+
+\subsection{Analysis plan}
+\label{sec:analysis}
+
+% Traceability: SR-ANA-010 (decomposition); three-targets labeling; SR-ANA-006.
+Three disciplines govern all Rung-2 analysis. First, \textbf{every reported comparison names its target class}: internal diagnostic (against configured state; design feedback only), criterion-style comparison (within-simulation, shared generative assumptions), or published benchmark (external; training-data contamination in full force). Second, \textbf{divergence is never reported raw}: cross-informant divergence is decomposed --- using C3 (perception-off) and C4 (role-sensitivity) --- into perception-attributable and response-distortion-attributable components, with the residual stated; an undecomposed divergence number is not evidence in this program. Third, \textbf{controls are reported before calibration outcomes}, in that order, in every results product: floors first, then nulls, then calibrated results, so that each calibrated statistic is read against what the floors and nulls already produce. Statistic families per signature class (estimators, agreement indices, and change metrics) are fixed in PR-6b from the verified benchmark table, since the choice of agreement statistic must match what the source literature actually reports \pending{G1}.
+
+% =====================================================================
 \section{Results}
-TODO: Present calibration outcomes, divergences, and uncertainty carried forward.
+\label{sec:results}
+% =====================================================================
 
+\noindent\fbox{\begin{minipage}{0.95\textwidth}
+\small This section is a pre-registered shell. It is populated only from validation cohorts run under the frozen Rung-2 configuration (program plan Phase~7), after PR-6a/PR-6b are committed and the G1 benchmark table is verified. Shells are included in the draft so that the shape of the answer --- including the order in which controls and calibrated results are reported --- is fixed before any number exists.
+\end{minipage}}
+
+\subsection{Controls first: floors, noise, and nulls}
+\pending{Phase 7: C0 noise floor (per instrument, production concurrency); C1 contamination floors per architecture with comparison to published-signature recitation; C2 single-agent persona null on all three signature classes; gate G verdict with encoding-fidelity margin. Table shell: control $\times$ statistic $\times$ value $\times$ floor-relative margin $\times$ verdict.}
+
+\subsection{S1: Multidomain structure}
+\pending{Phase 7: class-by-domain score patterns (Branch-appropriate), discrimination, intercorrelation/structure recovery vs.\ pre-registered signatures; floor-dominance statement per statistic.}
+
+\subsection{S2: Multi-informant divergence (decomposed)}
+\pending{Phase 7: agreement indices by role pairing; discrepancy direction/magnitude vs.\ targets; decomposition table --- perception-attributable share (via C3), distortion-attributable share, residual; C4 role-injection magnitude. No undecomposed divergence is reported.}
+
+\subsection{S3: Longitudinal change sensitivity}
+\pending{Phase 7: change statistics under improving/deteriorating/stable trajectories vs.\ targets; C5 ablation contrast; stability-under-stable-trajectory check (false-change rate).}
+
+\subsection{Boundary findings and the uncertainty carried forward}
+\pending{Phase 7: per-target shortfalls with magnitudes; the bounded-trust statement handed to Rung 3, enumerating (i) which relational capabilities are supported at which margins, (ii) which are unsupported or contamination-saturated, and (iii) the explicit uncertainty terms Rung-3 characterization must propagate. This subsection is the paper's deliverable to the program even under partial failure.}
+
+% =====================================================================
 \section{Discussion}
-TODO: Interpret the family-system layer as a methodological bridge rather than direct validation of the OHA.
+\label{sec:discussion}
+% =====================================================================
 
+\pending{Phase 7 for the outcome-contingent half of this section. The committed half follows.}
+
+\paragraph{What a calibration success would and would not license.} Under the best outcome row of Table~\ref{tab:interpretation}, Rung 3 inherits frozen relational machinery whose divergence and trajectory behavior dominated floors and nulls within pre-registered margins at the family level. That licenses using the machinery to \emph{characterize} the organizational instrument pair under controlled latent states --- to generate testable predictions about multi-assessor agreement patterns, discrepancy structure, and monitoring cadence --- with family-level residuals propagated as uncertainty. It does not license treating organizational outputs as validated measurement: organizations are not families; role structures, power asymmetries, and reporting incentives differ in kind; and family-to-organization equivalence remains a registered, unresolved threat (Section~\ref{sec:threats}). The program's standing scope rule applies unchanged: characterization confidence is capped by calibration evidence, and instrument validity claims are reserved for empirical phases.
+
+\paragraph{The reframe if the relational machinery is not supported.} If C2 reproduces the signature classes, the honest conclusion is that multi-informant family-measurement signatures are persona-recitable from training priors, and the contribution narrows to a calibrated method for \emph{surfacing genre-level multi-informant response priors} --- still useful for pre-screening instrument designs for likely discrepancy structure before empirical work, but no longer a multi-agent mechanism claim. The program has pre-committed to preferring that narrowed claim over a defended-but-unsupported one, at this rung exactly as at the individual rung. The bounded-uncertainty handoff to Rung 3 still occurs; it simply carries the narrowed license.
+
+\paragraph{Relation to the individual rung.} Two Rung-1 lessons shaped this design and deserve restating as design principles for staged LLM calibration generally: measurement floors are properties of the full serving stack and must be re-measured under each rung's run conditions, not assumed stable; and information channels (biographies) lose exactly the information the instruments are scaled on unless encoding fidelity is required and checked. Rung 2 adds a third: any layer built to produce a target phenomenon (here, perception rules producing divergence) must be pre-registered and decomposable, or it manufactures its own evidence.
+
+% =====================================================================
+\section{Threats to Validity}
+\label{sec:threats}
+% =====================================================================
+
+% Traceability: program threat register T1/T2/T4/T5/T6; this section is the paper-4
+% rendering of the machine-readable register entries.
+This section is a first-class deliverable, mirroring the program's standing threat register; each entry names its control and the residual that survives the control.
+
+\begin{description}[nosep]
+    \item[T1@R2 --- Training-data contamination of the benchmarks.] FAD/SCORE-15 psychometrics and the canonical discrepancy findings are plausibly in-corpus; reproduction may be recitation. \emph{Controls:} C1 contamination floors per signature class; floor-dominance required for any mechanistic reading; contamination-saturated targets demoted by pre-registered rule. \emph{Residual:} floors measure \emph{elicitable} recall, not all encoded knowledge; dominance over the floor narrows but does not eliminate the recitation explanation.
+    \item[T2@R2 --- Instructed versus emergent divergence.] The perception layer injects divergence by construction; calibrated ``informant discrepancy'' could be the rules echoing the same literature the targets come from. \emph{Controls:} PR-6a pre-registration of rule forms with sourcing labels; C3/C4 decomposition; C2 persona null bounding what no machinery at all produces. \emph{Residual:} rule forms themselves encode literature priors; the decomposition attributes variance but cannot certify emergence.
+    \item[T4@R2 --- Biography-channel opacity and loss.] The state$\to$biography$\to$response mapping is an LLM transformation with its own biases; relational texture may be lossy exactly where response anchors need it. \emph{Controls:} validator chain including relational-frequency-texture checks; encoding-fidelity measurement; binding activity gate G. \emph{Residual:} fidelity is measured against explicit-state responses, themselves model-generated; the channel reference is internal, not human.
+    \item[T5@R2 --- Inherited nuisance calibration.] Temperature was calibrated at Rung 1 to an individual-level stability target and is frozen here; all S3 change statistics are conditional on that nuisance setting. \emph{Controls:} honest labeling; no retuning (which would be worse); stability-under-stable-trajectory reported alongside change sensitivity. \emph{Residual:} family-level retest behavior was never separately tuned or validated; S3 comparisons to published change values inherit this conditionality.
+    \item[T6 --- Family-to-organization equivalence.] The rung's purpose is bounded: relational-machinery calibration, not construct transfer. Families and organizations differ in size, role structure, incentive structure, and exit options. \emph{Controls:} claims boundary (Section~\ref{sec:intro}); freeze-then-inherit discipline preventing organizational retuning; characterization-confidence cap at Rung 3. \emph{Residual:} unresolved by design at this rung; carried as the standing limitation on every Rung-3 claim.
+    \item[Licensing commensurability.] Under Branch B, published absolute values are not commensurable with project-authored item sets; only structural signatures are admissible, and the calibration claim narrows accordingly. \emph{Controls:} dual-branch pre-registration before the licensing outcome is known. \emph{Residual:} Branch B's structural targets are weaker discriminators; a Branch-B success supports less.
+    \item[Construct underrepresentation of simulated families.] Simulated members do not refuse, skip items, misread, fatigue, or attrit; children's developmental response constraints are not modeled; family history exists only as generated narrative. Any agreement with human signatures is agreement \emph{despite} omitting known sources of human response variance, and is interpreted at the signature level, never the respondent level.
+\end{description}
+
+% =====================================================================
 \section{Conclusion}
-TODO: State the contribution to staged calibration for brief survey instruments.
+\label{sec:conclusion}
+% =====================================================================
+
+This paper specifies the family-system rung of a staged calibration ladder for LLM-simulated survey respondents: a multi-agent relational extension --- shared ground-truth state, pre-registered perception, seeded interaction dynamics --- around a frozen individually-calibrated response engine, evaluated against verified published family-measurement signatures under contamination floors, persona and perception nulls, and mandatory divergence decomposition. The design's value is that it makes a seductive claim falsifiable: ``the simulation reproduces multi-informant measurement behavior'' is reportable here only if the reproduction survives the floors and nulls, and the pre-committed alternative conclusions are written before any number exists. \pending{Phase 7: one-paragraph statement of what the executed calibration established, in the vocabulary of Table~\ref{tab:interpretation}.} Whatever the outcome, the rung discharges its program function: the organizational characterization that follows inherits either calibrated relational machinery with quantified residual uncertainty, or an explicit, evidence-based narrowing of what that characterization may claim.
+
+% =====================================================================
+\appendix
+\section{Pre-registration skeletons (PR-6a / PR-6b)}
+\label{app:prereg}
+% =====================================================================
+
+Committed structure; contents are filled per Sections~\ref{sec:prereg}--\ref{sec:power} and gap G1/G3, then hash-anchored before runs.
+
+\paragraph{PR-6a --- Perception and dynamics rules; freeze procedure.}
+\begin{enumerate}[nosep]
+    \item Role$\to$perception rule forms, each labeled \emph{literature-sourced} (with verified citation) or \emph{design-posited}.
+    \item Tunable parameter list with ranges; everything outside the list is frozen by inheritance.
+    \item Dynamics specification: topology family, influence cadence (between-timepoint), event vocabulary, trajectory families.
+    \item Freeze procedure: halt conditions, hash scope, validation-cohort seeding rule.
+    \item Disclosures: partial knowledge held at commit time.
+\end{enumerate}
+
+\paragraph{PR-6b --- Benchmark targets, controls, power, verdicts.}
+\begin{enumerate}[nosep]
+    \item Branch declaration rule (A/B) and the full dual-branch target table with margins (noise-floor multiples where applicable); per-statistic mix-dependence handling.
+    \item Control thresholds: C0--C5 definitions, gate G pass condition, floor-dominance margins.
+    \item Cohort sizes and power basis (measured variance inputs, conservative effect-size rule); GPU budget envelope.
+    \item Verdict templates for every row of Table~\ref{tab:interpretation}, pre-written.
+    \item Statistic families per signature class, fixed to match what the verified sources report.
+    \item Disclosures: which floors/pilot values were seen before commit.
+\end{enumerate}
 
 \printbibliography
 
